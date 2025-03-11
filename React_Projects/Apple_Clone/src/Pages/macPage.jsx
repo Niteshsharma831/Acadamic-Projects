@@ -93,7 +93,6 @@ function MacProducts() {
               className="card-img-top mb-5"
               alt={latestAccessery.name}
               style={{ height: "650px", objectFit: "cover" }}
-
             />
             <div
               className="position-absolute top-0"
@@ -105,6 +104,24 @@ function MacProducts() {
                 <span>{latestAccessery.price}</span>
               </p>
             </div>
+            <a href="#">
+              <button
+                className="position-absolute rounded-circle bg-primary text-white border-0 "
+                style={{
+                  width: "50px",
+                  height: "50px",
+                  bottom: "10px",
+                  right: "10px",
+                  fontSize: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.2)",
+                }}
+              >
+                +
+              </button>
+            </a>
           </div>
         ))}
       </div>

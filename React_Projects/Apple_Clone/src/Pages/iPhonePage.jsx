@@ -29,10 +29,8 @@ function IPhonePage() {
       text: "iPhone 16 Pro Built for Apple Intelligence. Footnote",
     },
     {
-      name: "AirPods Pro",
       img: "https://image.winudf.com/v2/image1/Y29tLml3YWxscGFwZXIud2FsbHBhcGVyZm9yaXBob25lLmlwaG9uZXdhbGxwYXBlcnNfc2NyZWVuXzJfMTY2NDc5NzczNV8wMDc/screen-2.jpg?fakeurl=1&type=.jpg",
       price: "From ₹119900.00",
-      text: "iPhone 16 Pro Built for Apple Intelligence. Footnote",
     },
     {
       name: "AirPods Pro",
@@ -83,7 +81,10 @@ function IPhonePage() {
               src={latestAccessery.img}
               className="card-img-top mb-5"
               alt={latestAccessery.name}
-              style={{ height: "650px", objectFit: "cover" }}
+              style={{
+                height: "650px",
+                objectFit: "cover",
+              }}
             />
             <div
               className="position-absolute top-0"
@@ -95,6 +96,24 @@ function IPhonePage() {
                 <span>{latestAccessery.price}</span>
               </p>
             </div>
+            <a href="#">
+                <button
+                  className="position-absolute rounded-circle bg-primary text-white border-0 "
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    bottom: "10px",
+                    right: "10px",
+                    fontSize: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.2)",
+                  }}
+                >
+                  +
+                </button>
+              </a>
           </div>
         ))}
       </div>
@@ -516,6 +535,7 @@ function IPhonePage() {
           <div class="col col-lg-6 col-md-6 col-12">
             <img
               alt=""
+              width={"100%"}
               src="https://ee.co.uk/content/dam/tariff-refresh-23/apple-music-plus-one.jpg"
             />
           </div>
