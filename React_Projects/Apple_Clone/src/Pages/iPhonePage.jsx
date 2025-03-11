@@ -417,6 +417,109 @@ function IPhonePage() {
             />
           </div>
         </div>
+        <h1 className="mt-5">Significant others.</h1>
+        <div class="row">
+          <div class="col col-lg-6 col-md-6 col-12">
+            <div class="accordion" id="accordionExample">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                  <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseOne"
+                    aria-expanded="true"
+                    aria-controls="collapseOne"
+                  >
+                    <h5>iPhone and Mac</h5>
+                  </button>
+                </h2>
+                <div
+                  id="collapseOne"
+                  class="accordion-collapse collapse show"
+                  aria-labelledby="headingOne"
+                  data-bs-parent="#accordionExample"
+                >
+                  <div class="accordion-body">
+                    With iPhone Mirroring, you can view your iPhone screen on
+                    your Mac and control it without picking up your phone.
+                    Continuity features also let you answer calls or messages
+                    right from your Mac. You can even copy images, video, or
+                    text from your iPhone and paste it all into a different app
+                    on your Mac. And with iCloud, you can access your files from
+                    either device.
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseTwo"
+                    aria-expanded="false"
+                    aria-controls="collapseTwo"
+                  >
+                    <h5>iPhone and Apple Watch</h5>
+                  </button>
+                </h2>
+                <div
+                  id="collapseTwo"
+                  class="accordion-collapse collapse"
+                  aria-labelledby="headingTwo"
+                  data-bs-parent="#accordionExample"
+                >
+                  <div class="accordion-body">
+                    Misplaced your iPhone? The latest Apple Watch models can
+                    show you its approximate distance and direction. To set up a
+                    group photo on your iPhone, join the group and use Apple
+                    Watch as a viewfinder to snap the shot. And when you take a
+                    call on your Apple Watch, just tap your iPhone to continue
+                    the conversation there.
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingThree">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseThree"
+                    aria-expanded="false"
+                    aria-controls="collapseThree"
+                  >
+                    <h5>iPhone and AirPods</h5>
+                  </button>
+                </h2>
+                <div
+                  id="collapseThree"
+                  class="accordion-collapse collapse"
+                  aria-labelledby="headingThree"
+                  data-bs-parent="#accordionExample"
+                >
+                  <div class="accordion-body">
+                    Set up AirPods on iPhone with just a tap. You’ll love
+                    Adaptive Audio, which automatically tailors the noise
+                    control for you to provide the best listening experience
+                    across different environments and interactions throughout
+                    the day.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col col-lg-6 col-md-6 col-12">
+            <img
+              alt=""
+              src="https://ee.co.uk/content/dam/tariff-refresh-23/apple-music-plus-one.jpg"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
