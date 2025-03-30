@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./Components/navbar";
-import HomePage from "./Components/HomePage";
 import "./index.css";
 import FooterPage from "./Components/footer";
 import AppleStore from "./Components/store";
@@ -13,6 +12,9 @@ import AirPodsPage from "./Pages/AirPodsPage";
 import EntertainmentPage from "./Pages/EntertainmentPage";
 import AccesseriesPage from "./Pages/AccesseriesPage";
 import HomeTv from "./Pages/Home&Tv";
+import LoginForm from "./Components/loginPage";
+import RegistrationForm from "./Components/registrationFrom";
+import ProdcutApi from "./Pages/prodcutApi";
 
 function App() {
   return (
@@ -30,7 +32,8 @@ function MainApp() {
       {location.pathname !== "/" && <Navbar />}
       <Routes>
         <Route path="/" element={<ChatBot />} />
-        <Route path="/HomePage" element={<HomePage />} />
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/newuser" element={<RegistrationForm />} />
         <Route path="/store" element={<AppleStore />} />
         <Route path="/mac" element={<MacProducts />} />
         <Route path="/iPad" element={<IPadPage />} />
@@ -40,6 +43,7 @@ function MainApp() {
         <Route path="/home&tv" element={<HomeTv />} />
         <Route path="/entertainment" element={<EntertainmentPage />} />
         <Route path="/Accessories" element={<AccesseriesPage />} />
+        <Route path="/ApiProducts" element={<ProdcutApi />} />
       </Routes>
 
       {location.pathname !== "/" && <FooterPage />}

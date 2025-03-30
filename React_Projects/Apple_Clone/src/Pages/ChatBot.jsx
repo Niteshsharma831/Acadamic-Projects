@@ -7,7 +7,7 @@ function ChatBot() {
     <div>
       <div className="container-fluid w-100 position-fixed top-0 bg-light d-flex justify-content-between align-items-center px-3 py-2 shadow">
         <div className="center-text fs-5 fw-bold">Welcome to our Chatbot</div>
-        <Link to="HomePage">
+        <Link to="/login">
           <button className="btn btn-dark text-white">Apple Profile</button>
         </Link>
       </div>

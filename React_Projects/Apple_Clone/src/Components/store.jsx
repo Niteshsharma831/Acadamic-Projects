@@ -1,5 +1,6 @@
 import React from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { Link } from "react-router-dom";
 
 const products = [
   {
@@ -327,17 +328,16 @@ const AppleStore = () => {
       </div>
 
       <div className="latestAccesseries d-flex justify-content-between gap-3 mt-5">
-        {latestAccessories.map((latestAccesseries, index) => (
-          <div className="card text-center border-0" key={index}>
-            <img
-              src={latestAccesseries.img}
-              className="card-img-top mb-5"
-              alt={latestAccesseries.name}
-            />
+        {latestAccessories.map((item, index) => (
+          <div
+            className="card text-center border-0 position-relative"
+            key={index}
+          >
+            <img src={item.img} className="card-img-top mb-5" alt={item.name} />
 
             <div className="position-absolute top-0 text-light">
-              <p
-                className=""
+              <h1
+                className="p-2"
                 style={{
                   color:
                     index === 1 || index === 3 || index === 6
@@ -345,14 +345,15 @@ const AppleStore = () => {
                       : "white",
                 }}
               >
-                <h1 className="p-2">{latestAccesseries.name}</h1>
-                <span className="p-2">{latestAccesseries.text}</span>
-                <span>{latestAccesseries.price}</span>
-              </p>
+                {item.name}
+              </h1>
+              <p className="p-2">{item.text}</p>
+              <p>{item.price}</p>
             </div>
-            <a href="#">
+
+            <Link to="/ApiProducts">
               <button
-                className="position-absolute rounded-circle bg-primary text-white border-0 "
+                className="position-absolute rounded-circle bg-primary text-white border-0"
                 style={{
                   width: "50px",
                   height: "50px",
@@ -367,10 +368,11 @@ const AppleStore = () => {
               >
                 +
               </button>
-            </a>
+            </Link>
           </div>
         ))}
       </div>
+
       <div className="col col-lg-6 col-md-6 col-sm-12 col-12 mt-3">
         <h1>
           <span className="text-danger">Apple Store App.</span>{" "}
