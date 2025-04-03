@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 function FooterPage() {
   return (
@@ -160,6 +161,9 @@ function FooterPage() {
             <p className="m-0 border-start ps-3">Sales Policy</p>
             <p className="m-0 border-start ps-3">Legal</p>
             <p className="m-0 border-start ps-3">Site Maps</p>
+            <Link to="adminLogin">
+              <p className="text-sm text-gray-400">Aamin Login</p>
+            </Link>
           </div>
         </div>
       </footer>

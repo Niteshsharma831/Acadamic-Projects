@@ -45,9 +45,11 @@ function LoginForm() {
                   />
                 </div>
                 <div className="text-center">
-                  <button type="submit" className="btn btn-dark w-100">
-                    Login
-                  </button>
+                  <Link to="/store">
+                    <button type="submit" className="btn btn-dark w-100">
+                      Login
+                    </button>
+                  </Link>
                 </div>
               </form>
               <div className="text-center mt-3">
