@@ -34,6 +34,7 @@ function AdminLoginForm() {
                     type="text"
                     className="form-control"
                     placeholder="Enter username or email"
+                    required
                   />
                 </div>
                 <div className="mb-3">
@@ -42,6 +43,7 @@ function AdminLoginForm() {
                     type="password"
                     className="form-control"
                     placeholder="Enter password"
+                    required
                   />
                 </div>
                 <div className="text-center">

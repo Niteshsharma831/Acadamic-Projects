@@ -1,10 +1,13 @@
+// src/pages/ProductApi.js
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "../config/axoisIntence";
 
 function ProductApi() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate(); // ⬅️ Added
 
   useEffect(() => {
     axios
@@ -20,6 +23,10 @@ function ProductApi() {
         setLoading(false);
       });
   }, []);
+
+  const handleBuyNow = (product) => {
+    navigate(`/buy/${product._id}`, { state: { product } });
+  };
 
   return (
     <div className="bg-dark p-5 mt-5 text-white">
@@ -54,9 +61,11 @@ function ProductApi() {
                   <p className="fw-bold text-primary">
                     ${product.price || "N/A"}
                   </p>
-                  {/* Buttons stacked on small & tablet screens, row on large screens */}
                   <div className="d-flex flex-column flex-lg-row gap-2 mt-3">
-                    <button className="btn btn-primary px-3 w-100 w-lg-auto">
+                    <button
+                      className="btn btn-primary px-3 w-100 w-lg-auto"
+                      onClick={() => handleBuyNow(product)}
+                    >
                       Buy Now
                     </button>
                     <button className="btn btn-success px-3 w-100 w-lg-auto">

@@ -17,6 +17,9 @@ import RegistrationForm from "./Components/registrationFrom";
 import ProdcutApi from "./Pages/prodcutApi";
 import AdminPanel from "./admin/dashboard";
 import AdminLoginForm from "./admin/adminLogin";
+import HomePage from "./Components/homePage";
+import BuyProduct from "./Pages/BuyPage";
+import OrderConfirmation from "./Pages/OrderConfirmation";
 
 function App() {
   return (
@@ -38,6 +41,7 @@ function MainApp() {
       )}
       <Routes>
         <Route path="/" element={<ChatBot />} />
+        <Route path="/HomePage" element={<HomePage />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/newuser" element={<RegistrationForm />} />
         <Route path="/store" element={<AppleStore />} />
@@ -52,6 +56,8 @@ function MainApp() {
         <Route path="/ApiProducts" element={<ProdcutApi />} />
         <Route path="/adminLogin" element={<AdminLoginForm />} />
         <Route path="/adminDashboard" element={<AdminPanel />} />
+        <Route path="/buy/:id" element={<BuyProduct />} />
+        <Route path="/order-confirmation" element={<OrderConfirmation />} />
       </Routes>
       {!isDashboardPage && location.pathname !== "/" && <FooterPage />}
     </div>
