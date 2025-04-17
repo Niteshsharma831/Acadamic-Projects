@@ -84,6 +84,11 @@ function Navbar() {
               </Link>
             </li>
             <li className="nav-item mx-2">
+              <Link className="nav-link text-light" to="profile">
+                Profile
+              </Link>
+            </li>
+            <li className="nav-item mx-2">
               <Link className="nav-link text-light" to="/">
                 <span style={{ color: "red", fontWeight: "bold" }}>
                   💭ChatBot

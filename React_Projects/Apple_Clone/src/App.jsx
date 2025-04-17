@@ -20,6 +20,7 @@ import AdminLoginForm from "./admin/adminLogin";
 import HomePage from "./Components/homePage";
 import BuyProduct from "./Pages/BuyPage";
 import OrderConfirmation from "./Pages/OrderConfirmation";
+import Profile from "./Pages/profile";
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function MainApp() {
         <Route path="/adminDashboard" element={<AdminPanel />} />
         <Route path="/buy/:id" element={<BuyProduct />} />
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
       {!isDashboardPage && location.pathname !== "/" && <FooterPage />}
     </div>
