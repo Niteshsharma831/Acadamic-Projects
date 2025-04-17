@@ -1,4 +1,3 @@
-// src/pages/ProfilePage.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import appLogo from "../assets/Awesome.jpg";
@@ -6,10 +5,10 @@ import appLogo from "../assets/Awesome.jpg";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: "johndoe",
-    fullName: "John Doe",
+    username: "niteshshama_99",
+    fullName: "Nitesh Kumar SHarma",
     password: "password123",
-    address: "123 Main St, City, Country",
+    address: "RK University Main Campus rajkot, gujarat, 360020",
   });
 
   const handleChange = (e) => {

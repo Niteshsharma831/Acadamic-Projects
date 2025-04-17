@@ -32,14 +32,14 @@ function App() {
 
 function MainApp() {
   const location = useLocation();
-  const adminLogin = location.pathname === "/adminLogin";
-  const isDashboardPage = location.pathname === "/adminDashboard";
+
+  const hideNavbarRoutes = ["/", "/login", "/adminLogin", "/adminDashboard"];
+  const shouldShowNavbar = !hideNavbarRoutes.includes(location.pathname);
 
   return (
     <div className="App">
-      {location.pathname !== "/" && !adminLogin && !isDashboardPage && (
-        <Navbar />
-      )}
+      {shouldShowNavbar && <Navbar />}
+
       <Routes>
         <Route path="/" element={<ChatBot />} />
         <Route path="/HomePage" element={<HomePage />} />
@@ -61,7 +61,8 @@ function MainApp() {
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
-      {!isDashboardPage && location.pathname !== "/" && <FooterPage />}
+
+      {!hideNavbarRoutes.includes(location.pathname) && <FooterPage />}
     </div>
   );
 }
