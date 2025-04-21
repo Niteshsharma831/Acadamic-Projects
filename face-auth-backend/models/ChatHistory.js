@@ -20,10 +20,7 @@ const chatHistorySchema = new mongoose.Schema({
     default: 'text'
   },
   attachments: [{
-    type: String,
-    required: function() {
-      return this.type === 'image';
-    }
+    type: String
   }],
   timestamp: {
     type: Date,
@@ -32,22 +29,19 @@ const chatHistorySchema = new mongoose.Schema({
   }
 });
 
-// Indexes for faster queries
 chatHistorySchema.index({ user: 1, timestamp: -1 });
-chatHistorySchema.index({ timestamp: -1 });
+chatHistorySchema.index({ type: 1, timestamp: -1 });
 
-// Static method to get recent chat history for a user
 chatHistorySchema.statics.getRecentHistory = function(user, limit = 10) {
   return this.find({ user })
+    .select('-__v')
     .sort({ timestamp: -1 })
-    .limit(limit);
+    .limit(limit)
+    .lean();
 };
 
-// Static method to clear chat history for a user
 chatHistorySchema.statics.clearHistory = function(user) {
   return this.deleteMany({ user });
 };
 
-const ChatHistory = mongoose.model('ChatHistory', chatHistorySchema);
-
-module.exports = ChatHistory;
+module.exports = mongoose.model('ChatHistory', chatHistorySchema);

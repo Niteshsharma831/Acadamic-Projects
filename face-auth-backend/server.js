@@ -8,54 +8,74 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const voiceRoutes = require('./routes/voiceRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
 // Environment variables
 const PORT = process.env.PORT || 3001;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Logger setup
+const logger = (require('winston')).createLogger({
+  level: NODE_ENV === 'production' ? 'info' : 'debug',
+  format: (require('winston')).format.combine(
+    (require('winston')).format.timestamp(),
+    (require('winston')).format.json()
+  ),
+  transports: [
+    new (require('winston')).transports.Console(),
+    new (require('winston')).transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new (require('winston')).transports.File({ filename: 'logs/combined.log' })
+  ]
+});
 
 // Connect to MongoDB
 connectDB();
 
 // Middleware
-app.use(helmet()); // Security headers
-app.use(compression()); // Compress responses
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: NODE_ENV === 'production' ? ['https://your-production-domain.com'] : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true
-})); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
-app.use(morgan('dev')); // Request logging
+}));
+app.use(express.json());
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+});
 
-// Rate limiting
+// Rate limiting (exclude health endpoint)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  skip: (req) => req.path === '/health'
 });
 app.use(limiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/sound', voiceRoutes);
+app.use('/api/voice', voiceRoutes);
+app.use('/api/upload', uploadRoutes);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', timestamp: new Date() });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
 
-  // Handle multer errors
   if (err.name === 'MulterError') {
     return res.status(400).json({
       success: false,
-      error: 'File upload error: ' + err.message
+      error: `File upload error: ${err.message}`
     });
   }
 
-  // Handle validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -63,21 +83,13 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Handle mongoose errors
-  if (err.name === 'MongoError') {
-    if (err.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Duplicate key error'
-      });
-    }
-    return res.status(500).json({
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    return res.status(400).json({
       success: false,
-      error: 'Database error'
+      error: 'Duplicate key error'
     });
   }
 
-  // Default error
   res.status(500).json({
     success: false,
     error: 'Internal server error'
@@ -86,5 +98,5 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT} in ${NODE_ENV} mode`);
 });

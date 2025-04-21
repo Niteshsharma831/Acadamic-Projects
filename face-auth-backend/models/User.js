@@ -15,7 +15,11 @@ const userSchema = new mongoose.Schema({
   },
   faceEmbedding: {
     type: [Number],
-    required: true
+    required: true,
+    validate: {
+      validator: (v) => Array.isArray(v) && v.length > 0,
+      message: 'faceEmbedding must be a non-empty array'
+    }
   },
   registeredAt: {
     type: Date,
@@ -26,21 +30,15 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Index for faster email lookups
-userSchema.index({ email: 1 });
-
-// Method to update last login
 userSchema.methods.updateLastLogin = async function() {
   this.lastLogin = new Date();
   return this.save();
 };
 
-// Static method to find user by email
 userSchema.statics.findByEmail = function(email) {
-  return this.findOne({ email: email.toLowerCase() });
+  return this.findOne({ email: email.toLowerCase() }).lean();
 };
 
-// Pre-save middleware to ensure email is lowercase
 userSchema.pre('save', function(next) {
   if (this.isModified('email')) {
     this.email = this.email.toLowerCase();
@@ -48,6 +46,4 @@ userSchema.pre('save', function(next) {
   next();
 });
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User; 
+module.exports = mongoose.model('User', userSchema);

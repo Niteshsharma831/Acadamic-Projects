@@ -1,7 +1,6 @@
-// Home.jsx
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiUserPlus, FiLogIn, FiCheckCircle, FiAlertCircle, FiShield, FiClock, FiSmartphone, FiLock } from 'react-icons/fi';
+import { FiUserPlus, FiLogIn, FiCheckCircle, FiAlertCircle, FiShield, FiClock, FiSmartphone, FiLock, FiArrowRight } from 'react-icons/fi';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -11,415 +10,176 @@ const Home = () => {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+      transition: { staggerChildren: 0.2, delayChildren: 0.3 },
+    },
   };
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { y: 30, opacity: 0 },
     visible: {
       y: 0,
-      opacity: 1
-    }
+      opacity: 1,
+      transition: { type: 'spring', stiffness: 100, damping: 15 },
+    },
+  };
+
+  const particleVariants = {
+    animate: {
+      scale: [0, 1.2, 0],
+      opacity: [0, 0.6, 0],
+      x: () => Math.random() * 200 - 100,
+      y: () => Math.random() * 200 - 100,
+      transition: { duration: Math.random() * 4 + 3, repeat: Infinity, ease: 'easeInOut' },
+    },
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="home-container"
-    >
-      <div className="particles-background">
-        {[...Array(50)].map((_, i) => (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-gray-900 to-blue-950 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(30)].map((_, i) => (
           <motion.div
             key={i}
-            className="particle"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{
-              scale: [0, 1, 0],
-              opacity: [0, 1, 0],
-              x: [0, Math.random() * 100 - 50],
-              y: [0, Math.random() * 100 - 50]
-            }}
-            transition={{
-              duration: Math.random() * 3 + 2,
-              repeat: Infinity,
-              delay: Math.random() * 2
-            }}
+            className="absolute w-2 h-2 bg-blue-300 rounded-full opacity-50"
+            style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%` }}
+            variants={particleVariants}
+            animate="animate"
           />
         ))}
       </div>
 
       <motion.div
-        className="content-wrapper"
+        className="container mx-auto px-6 py-12 max-w-7xl relative z-10"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div
-          className="hero-section"
-          variants={itemVariants}
-        >
-          <motion.h1 
-            className="gradient-title"
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8 }}
+        <motion.div className="text-center mb-16" variants={itemVariants}>
+          <motion.h1
+            className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500 mb-6"
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
           >
             Next-Gen Face Authentication
           </motion.h1>
-          <motion.p 
-            className="subtitle"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            Experience the future of secure authentication with our advanced facial recognition technology
+          <motion.p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" variants={itemVariants}>
+            Secure, fast, and seamless facial recognition technology for modern authentication
           </motion.p>
         </motion.div>
 
         <AnimatePresence>
           {(location.state?.registrationSuccess || location.state?.loginSuccess) && (
             <motion.div
-              className="success-message"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              className="flex items-center justify-center bg-green-500/10 border border-green-500/50 text-green-400 rounded-xl p-4 mb-12 max-w-lg mx-auto"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              transition={{ duration: 0.4 }}
             >
-              <FiCheckCircle className="success-icon" />
-              {location.state?.registrationSuccess
-                ? 'Registration successful! Please login.'
-                : 'Welcome back! Authentication successful.'}
+              <FiCheckCircle className="mr-3 text-xl" />
+              <span>
+                {location.state?.registrationSuccess
+                  ? 'Registration successful! Please login.'
+                  : 'Welcome back! Authentication successful.'}
+              </span>
             </motion.div>
           )}
-
           {location.state?.error && (
             <motion.div
-              className="error-message"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              className="flex items-center justify-center bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl p-4 mb-12 max-w-lg mx-auto"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              transition={{ duration: 0.4 }}
             >
-              <FiAlertCircle className="error-icon" />
-              {location.state.error}
+              <FiAlertCircle className="mr-3 text-xl" />
+              <span>{location.state.error}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <motion.div 
-          className="action-buttons"
-          variants={itemVariants}
-        >
+        <motion.div className="flex flex-col sm:flex-row justify-center gap-4 mb-16" variants={itemVariants}>
           <motion.button
-            whileHover={{ scale: 1.05, boxShadow: "0 10px 20px rgba(0,0,0,0.2)" }}
+            className="flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-indigo-500 hover:to-purple-500 transition-all duration-300"
+            whileHover={{ scale: 1.05, boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)' }}
             whileTap={{ scale: 0.95 }}
-            className="primary-btn"
             onClick={() => navigate('/register')}
+            aria-label="Register new user"
           >
-            <FiUserPlus className="btn-icon" />
+            <FiUserPlus className="mr-2 text-xl" />
             Register New User
           </motion.button>
-          
           <motion.button
-            whileHover={{ scale: 1.05, boxShadow: "0 10px 20px rgba(0,0,0,0.2)" }}
+            className="flex items-center justify-center bg-gray-800/50 border border-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-700/50 transition-all duration-300"
+            whileHover={{ scale: 1.05, boxShadow: '0 8px 24px rgba(75, 85, 99, 0.3)' }}
             whileTap={{ scale: 0.95 }}
-            className="secondary-btn"
             onClick={() => navigate('/login')}
+            aria-label="Login"
           >
-            <FiLogIn className="btn-icon" />
+            <FiLogIn className="mr-2 text-xl" />
             Login
+          </motion.button>
+          <motion.button
+            className="flex items-center justify-center bg-gray-800/50 border border-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-700/50 transition-all duration-300"
+            whileHover={{ scale: 1.05, boxShadow: '0 8px 24px rgba(75, 85, 99, 0.3)' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/dashboard')}
+            aria-label="More"
+          >
+            <FiArrowRight className="mr-2 text-xl" />
+            More
           </motion.button>
         </motion.div>
 
-        <motion.div
-          className="features-grid"
-          variants={containerVariants}
-        >
-          <motion.div 
-            className="feature-card"
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-          >
-            <FiShield className="feature-icon" />
-            <h3>Secure Authentication</h3>
-            <p>Advanced facial recognition technology with 99.9% accuracy</p>
-          </motion.div>
-
-          <motion.div 
-            className="feature-card"
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-          >
-            <FiClock className="feature-icon" />
-            <h3>Real-time Analysis</h3>
-            <p>Instant verification process under 2 seconds</p>
-          </motion.div>
-
-          <motion.div 
-            className="feature-card"
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-          >
-            <FiSmartphone className="feature-icon" />
-            <h3>Cross-Platform</h3>
-            <p>Works seamlessly across all devices and platforms</p>
-          </motion.div>
-
-          <motion.div 
-            className="feature-card"
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-          >
-            <FiLock className="feature-icon" />
-            <h3>Privacy First</h3>
-            <p>Your biometric data is encrypted and secure</p>
-          </motion.div>
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16" variants={containerVariants}>
+          {[
+            { icon: FiShield, title: 'Secure Authentication', desc: 'Advanced facial recognition with 99.9% accuracy' },
+            { icon: FiClock, title: 'Real-time Analysis', desc: 'Instant verification in under 2 seconds' },
+            { icon: FiSmartphone, title: 'Cross-Platform', desc: 'Seamless experience across all devices' },
+            { icon: FiLock, title: 'Privacy First', desc: 'Encrypted biometric data for maximum security' },
+          ].map((feature, index) => (
+            <motion.div
+              key={index}
+              className="bg-gray-800/30 backdrop-blur-lg border border-gray-700/50 rounded-2xl p-6 text-center hover:bg-gray-800/50 transition-all duration-300"
+              variants={itemVariants}
+              whileHover={{ scale: 1.03, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)' }}
+            >
+              <feature.icon className="text-4xl text-indigo-400 mb-4 mx-auto" />
+              <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
+              <p className="text-gray-400 text-sm">{feature.desc}</p>
+            </motion.div>
+          ))}
         </motion.div>
 
-        <motion.div 
-          className="user-status"
-          variants={itemVariants}
-        >
+        <motion.div className="text-center" variants={itemVariants}>
           {location.state?.image ? (
-            <motion.div 
-              className="user-profile"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
+            <motion.div
+              className="flex flex-col items-center gap-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
             >
-              <img 
-                src={`data:image/jpeg;base64,${location.state.image}`} 
-                alt="User profile" 
-                className="profile-image"
+              <img
+                src={`data:image/jpeg;base64,${location.state.image}`}
+                alt="User profile"
+                className="w-24 h-24 rounded-full object-cover border-4 border-indigo-500 shadow-lg"
               />
-              <p className="welcome-text">Welcome back, {location.state.user?.email}</p>
+              <p className="text-lg text-white font-medium">Welcome back, {location.state.user?.email}</p>
             </motion.div>
           ) : (
-            <motion.div 
-              className="guest-message"
+            <motion.p
+              className="text-gray-400 text-lg"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
+              transition={{ duration: 0.5 }}
             >
-              <p>Login to access your personalized dashboard</p>
-            </motion.div>
+              Login to access your personalized dashboard
+            </motion.p>
           )}
         </motion.div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
 
 export default Home;
-
-// Add this CSS
-const styles = `
-  .home-container {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    position: relative;
-    overflow: hidden;
-    padding: 2rem;
-  }
-
-  .particles-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  }
-
-  .particle {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 50%;
-  }
-
-  .content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 1;
-  }
-
-  .hero-section {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-
-  .gradient-title {
-    font-size: 3.5rem;
-    font-weight: 800;
-    margin-bottom: 1rem;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .subtitle {
-    font-size: 1.2rem;
-    color: rgba(255, 255, 255, 0.8);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-bottom: 4rem;
-  }
-
-  .primary-btn, .secondary-btn {
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-  }
-
-  .primary-btn {
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    color: white;
-  }
-
-  .secondary-btn {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .btn-icon {
-    font-size: 1.2rem;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-    margin-bottom: 4rem;
-  }
-
-  .feature-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    padding: 2rem;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-  }
-
-  .feature-icon {
-    font-size: 2.5rem;
-    color: #667eea;
-    margin-bottom: 1rem;
-  }
-
-  .feature-card h3 {
-    color: white;
-    font-size: 1.3rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .feature-card p {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
-  }
-
-  .success-message, .error-message {
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .success-message {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
-    border: 1px solid rgba(46, 204, 113, 0.3);
-  }
-
-  .error-message {
-    background: rgba(255, 99, 71, 0.1);
-    color: #ff6347;
-    border: 1px solid rgba(255, 99, 71, 0.3);
-  }
-
-  .success-icon, .error-icon {
-    font-size: 1.2rem;
-  }
-
-  .user-status {
-    text-align: center;
-    margin-top: 2rem;
-  }
-
-  .user-profile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .profile-image {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #667eea;
-  }
-
-  .welcome-text {
-    color: white;
-    font-size: 1.2rem;
-  }
-
-  .guest-message {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.1rem;
-  }
-
-  @media (max-width: 768px) {
-    .gradient-title {
-      font-size: 2.5rem;
-    }
-
-    .subtitle {
-      font-size: 1rem;
-    }
-
-    .action-buttons {
-      flex-direction: column;
-    }
-
-    .features-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-`;
-
-// Inject styles
-const styleSheet = document.createElement('style');
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);

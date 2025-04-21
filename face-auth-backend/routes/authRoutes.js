@@ -4,16 +4,21 @@ const axios = require('axios');
 const FormData = require('form-data');
 const User = require('../models/User');
 const router = express.Router();
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  transports: [new winston.transports.Console()]
+});
 
 const FLASK_API_URL = process.env.FLASK_API_URL || 'http://localhost:5000';
 
-// Configure multer for handling file uploads
+// Configure multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -23,7 +28,7 @@ const upload = multer({
   }
 });
 
-// Register endpoint
+// Register route
 router.post('/register', upload.single('image'), async (req, res) => {
   try {
     const { email, name } = req.body;
@@ -32,12 +37,11 @@ router.post('/register', upload.single('image'), async (req, res) => {
     if (!email || !name || !image) {
       return res.status(400).json({
         success: false,
-        error: 'Email, name and image are required'
+        error: 'Email, name, and image are required'
       });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -45,24 +49,22 @@ router.post('/register', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Send image to Flask API for face embedding
     const formData = new FormData();
     formData.append('image', image.buffer, {
       filename: image.originalname,
       contentType: image.mimetype
     });
+    formData.append('email', email);
+    formData.append('name', name);
 
     const flaskResponse = await axios.post(`${FLASK_API_URL}/api/register`, formData, {
-      headers: {
-        ...formData.getHeaders()
-      }
+      headers: { ...formData.getHeaders() }
     });
 
-    if (!flaskResponse.data || !flaskResponse.data.success) {
-      throw new Error(flaskResponse.data?.error || 'Failed to process face image');
+    if (!flaskResponse.data.success) {
+      throw new Error(flaskResponse.data.error || 'Failed to process face image');
     }
 
-    // Create new user with face embedding
     const user = new User({
       email,
       name,
@@ -76,22 +78,18 @@ router.post('/register', upload.single('image'), async (req, res) => {
       success: true,
       message: 'User registered successfully',
       userId: user._id,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name
-      }
+      user: { id: user._id, email: user.email, name: user.name }
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({
+    logger.error(`Registration error: ${error.message}`);
+    res.status(error.response?.status || 500).json({
       success: false,
       error: error.response?.data?.error || error.message || 'Registration failed'
     });
   }
 });
 
-// Login endpoint
+// Login route
 router.post('/login', upload.single('image'), async (req, res) => {
   try {
     const { email } = req.body;
@@ -104,8 +102,7 @@ router.post('/login', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -113,20 +110,74 @@ router.post('/login', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Send image to Flask API for verification
     const formData = new FormData();
     formData.append('image', image.buffer, {
       filename: image.originalname,
       contentType: image.mimetype
     });
+    formData.append('email', email);
 
-    const flaskResponse = await axios.post(`${FLASK_API_URL}/api/verify`, formData, {
-      headers: {
-        ...formData.getHeaders()
-      }
+    const flaskResponse = await axios.post(`${FLASK_API_URL}/api/auth/login`, formData, {
+      headers: { ...formData.getHeaders() }
     });
 
-    if (!flaskResponse.data || !flaskResponse.data.success) {
+    if (!flaskResponse.data.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Face verification failed'
+      });
+    }
+
+    await user.updateLastLogin();
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      userId: user._id,
+      user: { id: user._id, email: user.email, name: user.name }
+    });
+  } catch (error) {
+    logger.error(`Login error: ${error.message}`);
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Login failed'
+    });
+  }
+});
+
+// Verify route
+router.post('/verify', upload.single('image'), async (req, res) => {
+  try {
+    const { email } = req.body;
+    const image = req.file;
+
+    if (!email || !image) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and image are required'
+      });
+    }
+
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const formData = new FormData();
+    formData.append('image', image.buffer, {
+      filename: image.originalname,
+      contentType: image.mimetype
+    });
+    formData.append('email', email);
+
+    const flaskResponse = await axios.post(`${FLASK_API_URL}/api/auth/login`, formData, {
+      headers: { ...formData.getHeaders() }
+    });
+
+    if (!flaskResponse.data.success) {
       return res.status(401).json({
         success: false,
         error: 'Face verification failed'
@@ -135,19 +186,15 @@ router.post('/login', upload.single('image'), async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: 'Verification successful',
       userId: user._id,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name
-      }
+      user: { id: user._id, email: user.email, name: user.name }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
+    logger.error(`Verification error: ${error.message}`);
+    res.status(error.response?.status || 500).json({
       success: false,
-      error: error.response?.data?.error || error.message || 'Login failed'
+      error: error.response?.data?.error || error.message || 'Verification failed'
     });
   }
 });

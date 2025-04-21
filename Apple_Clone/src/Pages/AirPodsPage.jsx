@@ -1,4 +1,4 @@
-import React from "react";
+import "react";
 import VideoSrc from "../Videos/airPods.mp4";
 import AirPods1 from "../assets/pro_startframe.jpg";
 import AirPods2 from "../assets/headset.jpg";
@@ -168,10 +168,10 @@ function AirPodsPage() {
                 <p className="card-text text-center">
                   <strong>From ₹24900.00*</strong>
                 </p>
-                <a href="#" class="btn btn-primary mt-3">
+                <a href="#" className="btn btn-primary mt-3">
                   Learn More
                 </a>{" "}
-                <a href="#" class="btn btn-primary mt-3">
+                <a href="#" className="btn btn-primary mt-3">
                   Buy{" "}
                 </a>
               </div>
@@ -196,10 +196,10 @@ function AirPodsPage() {
                 <p className="card-text text-center">
                   <strong>From ₹49900.00*</strong>
                 </p>
-                <a href="#" class="btn btn-primary mt-3">
+                <a href="#" className="btn btn-primary mt-3">
                   Learn More
                 </a>{" "}
-                <a href="#" class="btn btn-primary mt-3">
+                <a href="#" className="btn btn-primary mt-3">
                   But{" "}
                 </a>
               </div>
@@ -323,12 +323,12 @@ function AirPodsPage() {
           </div>
         ))}
       </div>
-      <div class="row mt-5 p-5" style={{ marginTop: "20%" }}>
-        <div class="col col-lg-6 col-md-6 col-12">
+      <div className="row mt-5 p-5" style={{ marginTop: "20%" }}>
+        <div className="col col-lg-6 col-md-6 col-12">
           <h1>Get 3 months of Apple Music free with your AirPods.**</h1>
         </div>
 
-        <div class="col col-lg-6 col-md-6 col-12">
+        <div className="col col-lg-6 col-md-6 col-12">
           <img
             alt=""
             src="https://www.apple.com/in/airpods/images/overview/music/music_album_hero__gme6dccldf6u_large.jpg"

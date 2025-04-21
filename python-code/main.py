@@ -1,358 +1,305 @@
 import base64
-import tempfile
 import logging
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import os
-from dotenv import load_dotenv
-from pymongo import MongoClient
-from chatbot.history import history_manager, init_mongo
-from chatbot.face import get_embedding, detect_face
-from chatbot.history import HistoryManager
-from langchain_groq import ChatGroq
-from chatbot.rag import health_rag, HealthChatRAG
 import numpy as np
-from langdetect import detect, DetectorFactory
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import Optional
+from chatbot.face import get_embedding, detect_face
+from chatbot.history import history_manager
+from chatbot.rag import AppleClone
 from chatbot.speech import speech_to_speech_chatbot, speech_to_text, text_to_speech
 from chatbot.image import process_chat
-import tensorflow as tf
-from datetime import datetime
-from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+from io import BytesIO
+import asyncio
+import os
+from dotenv import load_dotenv
 
-
-# Load environment variables
 load_dotenv()
-DetectorFactory.seed = 0  # Set fixed seed for consistent results
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3001"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept"],
-        "supports_credentials": True,
-        "expose_headers": ["Content-Type", "Authorization"],
-        "max_age": 600
-    }
-})
+app = FastAPI()
 
-# Initialize MongoDB with error handling
-client = MongoClient('mongodb://localhost:27017/')
+# Updated CORS settings to match Node.js server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+)
+
+# Standardize MongoDB database name to 'face-auth'
+client = MongoClient('mongodb://localhost:27017/', maxPoolSize=50)
 db = client['face-auth']
 users = db['users']
 
-# Initialize RAG system
-try:
-    health_rag = HealthChatRAG()
-    # logger.info("RAG system initialized successfully")
-except Exception as e:
-    # logger.error(f"Failed to initialize RAG system: {str(e)}")
-    health_rag = None
+apple_clone = AppleClone()
 
-@app.route('/api/register', methods=['POST'])
-def register():
-    """Register new user endpoint"""
+class ChatRequest(BaseModel):
+    message: str
+    voice_response: bool = False
+
+class TextToSpeechRequest(BaseModel):
+    text: str
+
+class TextToVoiceRequest(BaseModel):
+    query: str
+
+class VerifyFaceRequest(BaseModel):
+    image: str
+    storedEmbedding: str
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize AppleClone on startup"""
     try:
-        if 'image' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'No image file provided'
-            }), 400
-
-        image_file = request.files['image']
-        if image_file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'No selected file'
-            }), 400
-
-        # Save the image temporarily
-        temp_path = os.path.join(tempfile.gettempdir(), secure_filename(image_file.filename))
-        image_file.save(temp_path)
-
-        try:
-            # Get face embedding
-            embedding = get_embedding(temp_path)
-            
-            # Store embedding in MongoDB
-            user_id = users.insert_one({'embedding': embedding}).inserted_id
-            return jsonify({
-                'success': True,
-                'userId': str(user_id),
-                'embedding': embedding,  # The embedding is already a list
-                'message': 'Registration successful'
-            })
-        finally:
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                
+        await apple_clone.initialize()
+        logger.info("AppleClone initialized successfully")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
+        logger.error(f"Failed to initialize AppleClone: {str(e)}")
+        raise
 
-@app.route('/api/verify', methods=['POST'])
-def verify():
-    """Verify user endpoint"""
+@app.post("/api/register")
+async def register(file: UploadFile = File(...), email: str = None, name: str = None):
     try:
-        if 'image' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'No image file provided'
-            }), 400
-
-        image_file = request.files['image']
-        if image_file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'No selected file'
-            }), 400
-
-        # Save the image temporarily
-        temp_path = os.path.join(tempfile.gettempdir(), secure_filename(image_file.filename))
-        image_file.save(temp_path)
-
-        # Get face embedding
-        input_embedding = get_embedding(temp_path)
+        if not email or not name:
+            raise HTTPException(status_code=400, detail="Email and name are required")
         
-        # Clean up temp file
-        os.remove(temp_path)
+        # Check if user already exists
+        existing_user = users.find_one({"email": email.lower()})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="User already exists")
 
-        best_match = {'similarity': 0, 'user_id': None}
+        contents = await file.read()
+        base64_image = base64.b64encode(contents).decode('utf-8')
+        embedding = get_embedding(base64_image, is_base64=True)
         
-        # Compare with all stored embeddings
-        for user in users.find():
-            stored_embedding = np.array(user['embedding'])
-            
-            # Calculate cosine similarity
-            similarity = np.dot(input_embedding, stored_embedding) / (
-                np.linalg.norm(input_embedding) * np.linalg.norm(stored_embedding)
-            )
-            
-            if similarity > best_match['similarity']:
-                best_match = {'similarity': similarity, 'user_id': user['_id']}
-        
-        if best_match['similarity'] > 0.6:
-            return jsonify({
-                'success': True,
-                'userId': str(best_match['user_id']),
-                'similarity': float(best_match['similarity'])
-            })
-        return jsonify({
-            'success': False,
-            'error': 'No matching user found'
-        }), 401
-        
+        user_data = {
+            'email': email.lower(),
+            'name': name,
+            'embedding': embedding,
+            'registeredAt': datetime.now()
+        }
+        user_id = users.insert_one(user_data).inserted_id
+        return {
+            'success': True,
+            'userId': str(user_id),
+            'message': 'Registration successful',
+            'embedding': embedding  # Return embedding as expected by Node.js
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
+        logger.error(f"Registration error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
-
-@app.route('/api/chat', methods=['POST', 'OPTIONS'])
-def handle_chat():
-    """Chatbot endpoint with proper error handling"""
-    if request.method == 'OPTIONS':
-        return '', 200
-
+@app.post("/api/auth/login")
+async def login(file: UploadFile = File(...), email: str = None):
     try:
-        if not health_rag:
-            return jsonify({
-                'success': False,
-                'error': 'Chat system not initialized'
-            }), 500
+        if not email:
+            raise HTTPException(status_code=400, detail="Email is required")
 
-        data = request.get_json()
-        if not data or 'message' not in data or not data['message']:
-            return jsonify({
-                'success': False,
-                'error': 'No message provided'
-            }), 400
+        # Find user by email
+        user = users.find_one({"email": email.lower()})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
 
-        message = data['message']
+        contents = await file.read()
+        input_embedding = np.array(get_embedding(base64.b64encode(contents).decode('utf-8'), is_base64=True))
+        stored_embedding = np.array(user['embedding'])
         
-
-        # Process the message using RAG
-        response = health_rag.process_query(message)
+        # Calculate cosine similarity
+        similarity = np.dot(input_embedding, stored_embedding) / (
+            np.linalg.norm(input_embedding) * np.linalg.norm(stored_embedding)
+        )
         
-        if not response:
-            return jsonify({
+        if similarity < 0.6:
+            raise HTTPException(status_code=401, detail="Face verification failed")
+
+        # Update last login
+        users.update_one({"_id": user['_id']}, {"$set": {"lastLogin": datetime.now()}})
+        
+        return {
+            'success': True,
+            'userId': str(user['_id']),
+            'user': {'email': user.get('email'), 'name': user.get('name')},
+            'message': 'Login successful'
+        }
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Login failed: {str(e)}")
+
+@app.post("/api/verify-face")
+async def verify_face(request: VerifyFaceRequest):
+    try:
+        # Decode base64 image
+        base64_image = request.image.split(',')[1] if ',' in request.image else request.image
+        input_embedding = np.array(get_embedding(base64_image, is_base64=True))
+        
+        # Parse stored embedding
+        stored_embedding = np.array(json.loads(request.storedEmbedding))
+        
+        # Calculate cosine similarity
+        similarity = np.dot(input_embedding, stored_embedding) / (
+            np.linalg.norm(input_embedding) * np.linalg.norm(stored_embedding)
+        )
+        
+        if similarity < 0.6:
+            return {
                 'success': False,
-                'error': 'Failed to generate response'
-            }), 500
+                'isMatch': False,
+                'error': 'Face does not match'
+            }
+        
+        return {
+            'success': True,
+            'isMatch': True
+        }
+    except Exception as e:
+        logger.error(f"Face verification error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Face verification failed: {str(e)}")
 
-        # Generate voice response if requested
-        voice_response = None
-        if data.get('voice_response', False):
-            
-            voice_response = text_to_speech(response)
-
-        return jsonify({
+@app.post("/api/chat")
+async def handle_chat(request: ChatRequest):
+    try:
+        if not apple_clone:
+            raise HTTPException(status_code=500, detail="Chat system not initialized")
+        
+        response = await apple_clone.process_query(request.message)
+        audio_data = None
+        if request.voice_response:
+            audio_data = await text_to_speech(response)
+        
+        history_manager.add_interaction(request.message, response, user_id=None)
+        
+        return {
             'success': True,
             'text': response,
-            'voice_response': voice_response
-        })
-
+            'voice_response': audio_data
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Chat error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
-
-@app.route('/api/voice-chatbot', methods=['POST'])
-def voice_chatbot():
-    """Voice chatbot endpoint"""
+@app.post("/api/voice-chatbot")
+async def voice_chatbot(file: UploadFile = File(...)):
     try:
-        response_text = speech_to_speech_chatbot()
-        return jsonify({
+        contents = await file.read()
+        # Simulate speech-to-text (replace with actual processing if needed)
+        text = await speech_to_text()  # Note: This expects a microphone input, adjust for file
+        response = await apple_clone.process_query(text)
+        audio_data = await text_to_speech(response)
+        
+        history_manager.add_interaction(text, response, user_id=None)
+        
+        return {
             'success': True,
-            'text': response_text
-        })
+            'text': response,
+            'audio_data': audio_data
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Voice chatbot error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice chatbot failed: {str(e)}")
 
-@app.route('/api/voice-to-text-chatbot', methods=['POST'])
-def voice_to_text_chatbot():
-    """Voice to text endpoint"""
+@app.post("/api/voice-to-text-chatbot")
+async def voice_to_text_chatbot(file: UploadFile = File(...)):
     try:
-        text = speech_to_text()
-        return jsonify({
+        contents = await file.read()
+        text = await speech_to_text()  # Note: Adjust for file-based input
+        return {
             'success': True,
             'text': text
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Voice-to-text error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice-to-text failed: {str(e)}")
 
-@app.route('/api/text-to-voice-chatbot', methods=['POST'])
-def text_to_voice_chatbot():
-    """Text to voice endpoint"""
+@app.post("/api/text-to-voice-chatbot")
+async def text_to_voice_chatbot(request: TextToVoiceRequest):
     try:
-        if 'query' not in request.json:
-            return jsonify({
-                'success': False,
-                'error': 'No query provided'
-            }), 400
-
-        query = request.json['query']
-        text_to_speech(query)
+        response = await apple_clone.process_query(request.query)
+        audio_data = await text_to_speech(response)
         
-        # Process the query with RAG
-        response = health_rag.process_query(query)
+        history_manager.add_interaction(request.query, response, user_id=None)
         
-        return jsonify({
+        return {
             'success': True,
-            'text': response
-        })
+            'text': response,
+            'audio_data': audio_data
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Text-to-voice error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Text-to-voice failed: {str(e)}")
 
-@app.route('/api/image-to-text-chatbot', methods=['POST'])
-def image_to_text_chatbot():
-    """Image to text endpoint"""
+@app.post("/api/image-to-text-chatbot")
+async def image_to_text_chatbot(file: Optional[UploadFile] = File(None), image: Optional[str] = None):
     try:
-        if 'image' not in request.files and 'image' not in request.json:
-            return jsonify({
-                'success': False,
-                'error': 'No image provided'
-            }), 400
-
-        if 'image' in request.files:
-            image_file = request.files['image']
-            temp_path = os.path.join(tempfile.gettempdir(), image_file.filename)
-            image_file.save(temp_path)
-            extracted_text = process_chat(temp_path)
-            os.remove(temp_path)
+        if not file and not image:
+            raise HTTPException(status_code=400, detail="No image provided")
+        
+        if file:
+            contents = await file.read()
+            extracted_text = await process_chat(base64.b64encode(contents).decode('utf-8'), is_base64=True)
         else:
-            image_data = request.json.get('image', '')
-            temp_path = os.path.join(tempfile.gettempdir(), 'temp_image.jpg')
-            with open(temp_path, 'wb') as f:
-                f.write(base64.b64decode(image_data.split(',')[1] if ',' in image_data else image_data))
-            extracted_text = process_chat(temp_path)
-            os.remove(temp_path)
+            extracted_text = await process_chat(image, is_base64=True)
         
-        # Process the extracted text with RAG
-        response = health_rag.process_query(extracted_text)
+        response = await apple_clone.process_query(extracted_text)
         
-        return jsonify({
+        history_manager.add_interaction(extracted_text, response, user_id=None)
+        
+        return {
             'success': True,
             'text': response
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Image-to-text error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Image-to-text failed: {str(e)}")
 
-@app.route('/api/history', methods=['GET'])
-def get_history():
-    """Get chat history endpoint"""
+@app.get("/api/history")
+async def get_history(userId: Optional[str] = None):
     try:
-        history = history_manager.get_recent()
-        return jsonify({
+        history = history_manager.get_user_history(userId) if userId else history_manager.get_recent()
+        return {
             'success': True,
             'history': history
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"History error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"History fetch failed: {str(e)}")
 
-@app.route('/api/clear_history', methods=['POST'])
-def clear_history():
-    """Clear chat history endpoint"""
+@app.post("/api/clear_history")
+async def clear_history(userId: Optional[str] = None):
     try:
-        history_manager.clear()
-        return jsonify({
+        if userId:
+            history_manager.clear(user_id=userId)
+        else:
+            history_manager.clear()
+        return {
             'success': True,
             'message': 'History cleared'
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Clear history error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Clear history failed: {str(e)}")
 
-@app.route('/api/text-to-speech', methods=['POST'])
-def text_to_speech_endpoint():
-    """Text to speech endpoint"""
+@app.post("/api/text-to-speech")
+async def text_to_speech_endpoint(request: TextToSpeechRequest):
     try:
-        data = request.get_json()
-        if not data or 'text' not in data:
-            return jsonify({
-                'success': False,
-                'error': 'No text provided'
-            }), 400
-
-        text = data['text']
-        audio_data = text_to_speech(text)
-        
-        return jsonify({
+        audio_data = await text_to_speech(request.text)
+        return {
             'success': True,
             'audio_data': audio_data
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Text-to-speech endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Text-to-speech failed: {str(e)}")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
-    
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000, workers=4, reload=True)

@@ -1,13 +1,11 @@
 import os
 import logging
 import pandas as pd
-from datetime import datetime
 import asyncio
 from functools import lru_cache
 from dotenv import load_dotenv
 from langdetect import detect, DetectorFactory
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
-
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -19,10 +17,11 @@ from langchain.schema.output_parser import StrOutputParser
 from sentence_transformers import CrossEncoder
 from chatbot.history import history_manager
 from chatbot.template import prompt
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-class HealthChatRAG:
+class AppleClone:
     SUPPORTED_LANGUAGES = {
         "en": "en", "hi": "hi", "ar": "ar", "gu": "gu",
         "bn": "bn", "ta": "ta", "te": "te", "ml": "ml",
@@ -30,46 +29,52 @@ class HealthChatRAG:
         "bo": "bo", "or": "or"
     }
 
-    def __init__(self, data_path: str = "apple.csv"):
+    def __init__(self, data_path: str = "apple(2).csv"):
         DetectorFactory.seed = 0
         self.data_path = data_path
-        self.initialize_components()
+        self.llm = None
+        self.vector_store = None
+        self.retriever = None
+        self.tokenizer = None
+        self.translation_model = None
+        self.cross_encoder = None
+        self.rag_chain = None
+        logger.info("HealthChatRAG initialized, awaiting async setup")
+
+    async def initialize(self):
+        """Initialize components asynchronously"""
+        await self.initialize_components()
         logger.info("RAG system initialized successfully")
 
-    def initialize_components(self):
-        # Load environment variables
-        load_dotenv()
-        if "GROQ_API_KEY" not in os.environ:
-            raise ValueError("GROQ_API_KEY environment variable missing")
-
-        # Initialize components asynchronously
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(asyncio.gather(
+    async def initialize_components(self):
+        await asyncio.gather(
             self.initialize_llm(),
             self.initialize_retriever(),
             self.initialize_translation_models()
-        ))
+        )
         self.cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
         self.build_rag_chain()
 
     async def initialize_llm(self):
+        load_dotenv()
+        if "GROQ_API_KEY" not in os.environ:
+            raise ValueError("GROQ_API_KEY environment variable missing")
         self.llm = ChatGroq(
-            temperature=0.5, model_name="llama3-8b-8192", max_retries=2, timeout=10
+            temperature=0.5, model_name="meta-llama/llama-4-scout-17b-16e-instruct",
+            max_retries=2, timeout=10
         )
 
     async def initialize_retriever(self):
         try:
-            df = pd.read_csv(self.data_path, usecols=['Text Content'],encoding='latin1').dropna()
+            df = pd.read_csv(self.data_path, usecols=['Text Content'], encoding='latin1').dropna()
             documents = [Document(page_content=row['Text Content']) for _, row in df.iterrows()]
-
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
             splits = text_splitter.split_documents(documents)
-
             embeddings = HuggingFaceEmbeddings(
                 model_name="sentence-transformers/all-MiniLM-L6-v2",
                 model_kwargs={"device": "cpu"}
             )
-            self.vector_store = FAISS.from_documents(splits, embeddings)
+            self.vector_store = await asyncio.to_thread(FAISS.from_documents, splits, embeddings)
             self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 5})
         except Exception as e:
             logger.error(f"Retriever initialization failed: {str(e)}")
@@ -87,7 +92,8 @@ class HealthChatRAG:
         self.rag_chain = (
             {
                 "context": self.retriever | self.format_context,
-                "question": RunnablePassthrough()
+                "question": RunnablePassthrough(),
+                "history": lambda x: history_manager.get_recent(limit=5),
             }
             | prompt
             | self.llm
@@ -95,7 +101,6 @@ class HealthChatRAG:
         )
 
     def format_context(self, docs: list) -> str:
-        # Rerank documents with cross-encoder
         query = docs[0].metadata.get("query", "") if docs else ""
         pairs = [(query, doc.page_content) for doc in docs]
         if pairs and query:
@@ -106,18 +111,17 @@ class HealthChatRAG:
     async def process_query(self, query: str) -> str:
         try:
             if not query.strip():
-                return "Please enter a valid health question."
+                return "Please enter a valid question."
 
-            lang = self.detect_language(query)
+            lang = await asyncio.to_thread(self.detect_language, query)
             lang = lang if lang in self.SUPPORTED_LANGUAGES else "en"
 
             if cached := await self.check_similarity(query):
                 return cached
 
             response = await self.generate_response(query, lang)
-            self.update_history(query, response, lang)
+            history_manager.add_interaction(query, response)
             return response
-
         except Exception as e:
             logger.error(f"Query processing error: {str(e)}")
             return "Error processing your request. Try again."
@@ -136,12 +140,11 @@ class HealthChatRAG:
                 return None
 
             questions = [entry["user_input"] for entry in history]
-            vectorizer = self.vector_store.embedding_function
-            query_embedding = vectorizer.embed_query(query)
-            history_embeddings = vectorizer.embed_documents(questions)
+            query_embedding = await asyncio.to_thread(self.vector_store.embedding_function.embed_query, query)
+            history_embeddings = await asyncio.to_thread(self.vector_store.embedding_function.embed_documents, questions)
             
             similarities = [
-                float(self.vector_store.similarity_search_with_score(query_embedding, h)[0][1])
+                float(np.dot(query_embedding, h) / (np.linalg.norm(query_embedding) * np.linalg.norm(h)))
                 for h in history_embeddings
             ]
             max_similarity = max(similarities) if similarities else 0
@@ -155,11 +158,11 @@ class HealthChatRAG:
     async def generate_response(self, query: str, lang: str) -> str:
         try:
             translated_query = await self.translate(query, lang, "en") if lang != "en" else query
-            response = await asyncio.to_thread(self.rag_chain.invoke, translated_query)
+            response = await self.rag_chain.invoke(translated_query)
             return await self.translate(response, "en", lang) if lang != "en" else response
         except Exception as e:
             logger.error(f"Response generation failed: {str(e)}")
-            return "I don’t have enough data. Consult a professional.\n\nThis is informational only. Consult a doctor for medical advice."
+            return "I don’t have enough data. Consult a professional."
 
     @lru_cache(maxsize=500)
     async def translate(self, text: str, src: str, tgt: str) -> str:
@@ -167,20 +170,15 @@ class HealthChatRAG:
             return text
         try:
             self.tokenizer.src_lang = self.SUPPORTED_LANGUAGES[src]
-            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+            inputs = await asyncio.to_thread(self.tokenizer, text, return_tensors="pt", truncation=True, max_length=512)
             outputs = await asyncio.to_thread(
                 self.translation_model.generate,
                 **inputs,
                 forced_bos_token_id=self.tokenizer.lang_code_to_id[self.SUPPORTED_LANGUAGES[tgt]]
             )
-            return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            return await asyncio.to_thread(self.tokenizer.decode, outputs[0], skip_special_tokens=True)
         except Exception as e:
             logger.error(f"Translation failed: {str(e)}")
             return text
 
-    def update_history(self, query: str, response: str, lang: str):
-        history_manager.add_interaction(query, response)
-
-# Run the chatbot
-health_rag = HealthChatRAG()
-    # Example usage
+# Singleton instance, but don't initialize async components yet
